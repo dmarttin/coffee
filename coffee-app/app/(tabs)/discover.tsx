@@ -2,74 +2,246 @@ import {
   View,
   Text,
   ScrollView,
-  TextInput,
   ActivityIndicator,
   FlatList,
+  TouchableOpacity,
+  StyleSheet,
 } from "react-native";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useCoffees, useSearchCoffees } from "../../lib/queries";
 import CoffeeCard from "../../components/CoffeeCard";
+import Input from "../../components/ui/Input";
+import Badge from "../../components/ui/Badge";
+
+type FilterType = "origin" | "process" | "roastLevel" | "tastingNotes" | null;
+
+type CoffeeWithRoaster = {
+  id: string;
+  name: string;
+  origin: string | null;
+  region: string | null;
+  process: string | null;
+  roast_level: string | null;
+  tasting_notes: string[] | null;
+  bag_image_url: string | null;
+  roasters: {
+    name: string;
+    logo_url: string | null;
+  } | null;
+};
 
 export default function DiscoverScreen() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedFilter, setSelectedFilter] = useState<FilterType>(null);
+  const [selectedValues, setSelectedValues] = useState<string[]>([]);
 
   const { data: allCoffees, isLoading: isLoadingAll } = useCoffees();
   const { data: searchResults, isLoading: isSearching } =
     useSearchCoffees(searchQuery);
 
-  const coffees = searchQuery.length > 0 ? searchResults : allCoffees;
+  const coffees: CoffeeWithRoaster[] =
+    searchQuery.length > 0 ? searchResults || [] : allCoffees || [];
   const isLoading = searchQuery.length > 0 ? isSearching : isLoadingAll;
 
-  return (
-    <View className="flex-1 bg-white">
-      <View className="p-4 bg-white border-b border-gray-200">
-        <Text className="text-2xl font-bold text-gray-800 mb-4">
-          Discover Coffees
-        </Text>
+  const filterOptions = useMemo(() => {
+    if (coffees.length === 0)
+      return { origins: [], processes: [], roastLevels: [], tastingNotes: [] };
 
-        {/* Search Bar */}
-        <TextInput
-          className="bg-gray-100 px-4 py-3 rounded-lg mb-4"
+    const origins = Array.from(
+      new Set(coffees.map((c) => c.origin).filter(Boolean))
+    ).sort() as string[];
+    const processes = Array.from(
+      new Set(coffees.map((c) => c.process).filter(Boolean))
+    ).sort() as string[];
+    const roastLevels = Array.from(
+      new Set(coffees.map((c) => c.roast_level).filter(Boolean))
+    ).sort() as string[];
+    const tastingNotes = Array.from(
+      new Set(coffees.flatMap((c) => c.tasting_notes || []))
+    ).sort();
+
+    return { origins, processes, roastLevels, tastingNotes };
+  }, [coffees]);
+
+  const filteredCoffees = useMemo(() => {
+    if (selectedValues.length === 0) return coffees;
+
+    return coffees.filter((coffee) => {
+      if (selectedFilter === "origin") {
+        return selectedValues.includes(coffee.origin || "");
+      }
+      if (selectedFilter === "process") {
+        return selectedValues.includes(coffee.process || "");
+      }
+      if (selectedFilter === "roastLevel") {
+        return selectedValues.includes(coffee.roast_level || "");
+      }
+      if (selectedFilter === "tastingNotes") {
+        return selectedValues.some((note) =>
+          coffee.tasting_notes?.includes(note)
+        );
+      }
+      return true;
+    });
+  }, [coffees, selectedFilter, selectedValues]);
+
+  const toggleFilterValue = (value: string) => {
+    setSelectedValues((prev) =>
+      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
+    );
+  };
+
+  const clearFilters = () => {
+    setSelectedFilter(null);
+    setSelectedValues([]);
+  };
+
+  const getFilterOptions = () => {
+    switch (selectedFilter) {
+      case "origin":
+        return filterOptions.origins;
+      case "process":
+        return filterOptions.processes;
+      case "roastLevel":
+        return filterOptions.roastLevels;
+      case "tastingNotes":
+        return filterOptions.tastingNotes;
+      default:
+        return [];
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Discover Coffees</Text>
+
+        <Input
           placeholder="Search coffees, roasters, origins..."
           value={searchQuery}
           onChangeText={setSearchQuery}
+          containerStyle={styles.searchContainer}
         />
 
-        {/* Filters Preview */}
         <View>
-          <Text className="text-sm font-semibold text-gray-700 mb-2">
-            Quick Filters:
-          </Text>
+          <Text style={styles.filterLabel}>Quick Filters:</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View className="flex-row gap-2">
-              <View className="bg-amber-100 px-3 py-1.5 rounded-full">
-                <Text className="text-xs text-amber-900">Origin</Text>
-              </View>
-              <View className="bg-amber-100 px-3 py-1.5 rounded-full">
-                <Text className="text-xs text-amber-900">Process</Text>
-              </View>
-              <View className="bg-amber-100 px-3 py-1.5 rounded-full">
-                <Text className="text-xs text-amber-900">Roast Level</Text>
-              </View>
-              <View className="bg-amber-100 px-3 py-1.5 rounded-full">
-                <Text className="text-xs text-amber-900">Tasting Notes</Text>
-              </View>
+            <View style={styles.filterRow}>
+              <TouchableOpacity
+                onPress={() => {
+                  setSelectedFilter(
+                    selectedFilter === "origin" ? null : "origin"
+                  );
+                  setSelectedValues([]);
+                }}
+              >
+                <Badge
+                  variant={selectedFilter === "origin" ? "orange" : "secondary"}
+                >
+                  Origin
+                </Badge>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  setSelectedFilter(
+                    selectedFilter === "process" ? null : "process"
+                  );
+                  setSelectedValues([]);
+                }}
+              >
+                <Badge
+                  variant={
+                    selectedFilter === "process" ? "yellow" : "secondary"
+                  }
+                >
+                  Process
+                </Badge>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  setSelectedFilter(
+                    selectedFilter === "roastLevel" ? null : "roastLevel"
+                  );
+                  setSelectedValues([]);
+                }}
+              >
+                <Badge
+                  variant={
+                    selectedFilter === "roastLevel" ? "green" : "secondary"
+                  }
+                >
+                  Roast Level
+                </Badge>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  setSelectedFilter(
+                    selectedFilter === "tastingNotes" ? null : "tastingNotes"
+                  );
+                  setSelectedValues([]);
+                }}
+              >
+                <Badge
+                  variant={
+                    selectedFilter === "tastingNotes" ? "blue" : "secondary"
+                  }
+                >
+                  Tasting Notes
+                </Badge>
+              </TouchableOpacity>
             </View>
           </ScrollView>
         </View>
+
+        {selectedFilter && (
+          <View style={styles.selectedFilterSection}>
+            <View style={styles.selectedFilterHeader}>
+              <Text style={styles.selectedFilterLabel}>
+                Select{" "}
+                {selectedFilter === "tastingNotes"
+                  ? "Tasting Notes"
+                  : selectedFilter}
+                :
+              </Text>
+              {selectedValues.length > 0 && (
+                <TouchableOpacity onPress={clearFilters}>
+                  <Text style={styles.clearButton}>Clear</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.filterRow}>
+                {getFilterOptions().map((option) => (
+                  <TouchableOpacity
+                    key={option}
+                    onPress={() => toggleFilterValue(option)}
+                  >
+                    <Badge
+                      variant={
+                        selectedValues.includes(option) ? "default" : "outline"
+                      }
+                      size="sm"
+                    >
+                      {option}
+                    </Badge>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+        )}
       </View>
 
-      {/* Coffee List */}
       {isLoading ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#8B4513" />
-          <Text className="text-gray-500 mt-2">Loading coffees...</Text>
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color="#6F6E69" />
+          <Text style={styles.loadingText}>Loading coffees...</Text>
         </View>
-      ) : coffees && coffees.length > 0 ? (
+      ) : filteredCoffees.length > 0 ? (
         <FlatList
-          data={coffees}
+          data={filteredCoffees}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ padding: 16 }}
+          contentContainerStyle={styles.listContent}
           renderItem={({ item }) => (
             <CoffeeCard
               id={item.id}
@@ -84,14 +256,14 @@ export default function DiscoverScreen() {
           )}
         />
       ) : (
-        <View className="flex-1 items-center justify-center p-8">
-          <Text className="text-6xl mb-4">☕</Text>
-          <Text className="text-xl font-semibold text-gray-800 mb-2">
-            No coffees found
-          </Text>
-          <Text className="text-gray-500 text-center">
-            {searchQuery
-              ? "Try adjusting your search terms"
+        <View style={styles.emptyContainer}>
+          <View style={styles.emptyIconOuter}>
+            <View style={styles.emptyIconInner} />
+          </View>
+          <Text style={styles.emptyTitle}>No coffees found</Text>
+          <Text style={styles.emptySubtitle}>
+            {searchQuery || selectedValues.length > 0
+              ? "Try adjusting your search or filters"
               : "The coffee database is empty. Add some coffees to get started!"}
           </Text>
         </View>
@@ -99,3 +271,96 @@ export default function DiscoverScreen() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#FFFCF0",
+  },
+  header: {
+    padding: 16,
+    backgroundColor: "#FFFCF0",
+    borderBottomWidth: 1,
+    borderBottomColor: "#CECDC3",
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#1C1B1A",
+    marginBottom: 16,
+  },
+  searchContainer: {
+    marginBottom: 16,
+  },
+  filterLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#575653",
+    marginBottom: 8,
+  },
+  filterRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  selectedFilterSection: {
+    marginTop: 12,
+  },
+  selectedFilterHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  selectedFilterLabel: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#575653",
+  },
+  clearButton: {
+    fontSize: 14,
+    color: "#205EA6",
+  },
+  centered: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loadingText: {
+    color: "#878580",
+    marginTop: 8,
+  },
+  listContent: {
+    padding: 16,
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 32,
+  },
+  emptyIconOuter: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#E6E4D9",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  emptyIconInner: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#B7B5AC",
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#1C1B1A",
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    color: "#878580",
+    textAlign: "center",
+  },
+});

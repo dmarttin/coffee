@@ -1,10 +1,91 @@
 import { Tabs } from "expo-router";
-import { View, Text } from "react-native";
+import { View } from "react-native";
 
-// Simple icon component using emoji for now (replace with proper icons later)
-function TabIcon({ emoji, focused }: { emoji: string; focused: boolean }) {
+function FeedIcon({ focused }: { focused: boolean }) {
   return (
-    <Text style={{ fontSize: 24, opacity: focused ? 1 : 0.6 }}>{emoji}</Text>
+    <View
+      style={{
+        width: 24,
+        height: 24,
+        borderRadius: 4,
+        backgroundColor: focused ? "#BC5215" : "#B7B5AC",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <View
+        style={{
+          width: 12,
+          height: 8,
+          borderRadius: 2,
+          backgroundColor: focused ? "#FFFCF0" : "#6F6E69",
+        }}
+      />
+    </View>
+  );
+}
+
+function DiscoverIcon({ focused }: { focused: boolean }) {
+  return (
+    <View
+      style={{
+        width: 22,
+        height: 22,
+        borderRadius: 11,
+        borderWidth: 3,
+        borderColor: focused ? "#BC5215" : "#B7B5AC",
+      }}
+    />
+  );
+}
+
+function ScanIcon({ focused }: { focused: boolean }) {
+  return (
+    <View
+      style={{
+        width: 24,
+        height: 24,
+        borderRadius: 4,
+        borderWidth: 3,
+        borderColor: focused ? "#BC5215" : "#B7B5AC",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <View
+        style={{
+          width: 8,
+          height: 8,
+          borderRadius: 4,
+          backgroundColor: focused ? "#BC5215" : "#B7B5AC",
+        }}
+      />
+    </View>
+  );
+}
+
+function ProfileIcon({ focused }: { focused: boolean }) {
+  return (
+    <View style={{ alignItems: "center" }}>
+      <View
+        style={{
+          width: 12,
+          height: 12,
+          borderRadius: 6,
+          backgroundColor: focused ? "#BC5215" : "#B7B5AC",
+          marginBottom: 2,
+        }}
+      />
+      <View
+        style={{
+          width: 20,
+          height: 10,
+          borderTopLeftRadius: 10,
+          borderTopRightRadius: 10,
+          backgroundColor: focused ? "#BC5215" : "#B7B5AC",
+        }}
+      />
+    </View>
   );
 }
 
@@ -12,22 +93,23 @@ export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: "#8B4513",
-        tabBarInactiveTintColor: "#999",
+        tabBarActiveTintColor: "#BC5215",
+        tabBarInactiveTintColor: "#6F6E69",
         tabBarStyle: {
-          backgroundColor: "#fff",
+          backgroundColor: "#FFFCF0",
           borderTopWidth: 1,
-          borderTopColor: "#eee",
+          borderTopColor: "#CECDC3",
           paddingTop: 8,
           paddingBottom: 8,
           height: 60,
         },
         headerStyle: {
-          backgroundColor: "#fff",
+          backgroundColor: "#FFFCF0",
         },
         headerTitleStyle: {
           fontWeight: "600",
           fontSize: 20,
+          color: "#1C1B1A",
         },
       }}
     >
@@ -35,28 +117,28 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: "Feed",
-          tabBarIcon: ({ focused }) => <TabIcon emoji="🏠" focused={focused} />,
+          tabBarIcon: ({ focused }) => <FeedIcon focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="discover"
         options={{
           title: "Discover",
-          tabBarIcon: ({ focused }) => <TabIcon emoji="🔍" focused={focused} />,
+          tabBarIcon: ({ focused }) => <DiscoverIcon focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="scan"
         options={{
           title: "Scan",
-          tabBarIcon: ({ focused }) => <TabIcon emoji="📷" focused={focused} />,
+          tabBarIcon: ({ focused }) => <ScanIcon focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: "Profile",
-          tabBarIcon: ({ focused }) => <TabIcon emoji="👤" focused={focused} />,
+          tabBarIcon: ({ focused }) => <ProfileIcon focused={focused} />,
         }}
       />
     </Tabs>

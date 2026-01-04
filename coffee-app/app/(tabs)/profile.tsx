@@ -1,60 +1,127 @@
-import { View, Text, ScrollView, TouchableOpacity } from "react-native";
+import { View, Text, ScrollView, StyleSheet } from "react-native";
+import Button from "../../components/ui/Button";
+import { Card, CardContent } from "../../components/ui/Card";
 
 export default function ProfileScreen() {
   return (
-    <ScrollView className="flex-1 bg-white">
-      <View className="p-4">
+    <ScrollView style={styles.container}>
+      <View style={styles.content}>
         {/* Profile Header */}
-        <View className="items-center mb-6">
-          <View className="w-24 h-24 bg-amber-200 rounded-full items-center justify-center mb-3">
-            <Text className="text-4xl">☕</Text>
+        <View style={styles.header}>
+          <View style={styles.avatarOuter}>
+            <View style={styles.avatarInner} />
           </View>
-          <Text className="text-2xl font-bold text-gray-800">Guest User</Text>
-          <Text className="text-gray-500">@guest</Text>
+          <Text style={styles.userName}>Guest User</Text>
+          <Text style={styles.userHandle}>@guest</Text>
         </View>
 
         {/* Stats */}
-        <View className="flex-row justify-around mb-6 p-4 bg-gray-50 rounded-lg">
-          <View className="items-center">
-            <Text className="text-2xl font-bold text-amber-900">0</Text>
-            <Text className="text-gray-600">Coffees</Text>
+        <Card style={styles.statsCard}>
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>0</Text>
+              <Text style={styles.statLabel}>Coffees</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>0</Text>
+              <Text style={styles.statLabel}>Reviews</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>0</Text>
+              <Text style={styles.statLabel}>Favorites</Text>
+            </View>
           </View>
-          <View className="items-center">
-            <Text className="text-2xl font-bold text-amber-900">0</Text>
-            <Text className="text-gray-600">Reviews</Text>
-          </View>
-          <View className="items-center">
-            <Text className="text-2xl font-bold text-amber-900">0</Text>
-            <Text className="text-gray-600">Favorites</Text>
-          </View>
-        </View>
+        </Card>
 
         {/* Action Buttons */}
-        <View className="gap-3">
-          <TouchableOpacity className="bg-amber-700 px-6 py-3 rounded-lg">
-            <Text className="text-white font-semibold text-center">
-              Sign In
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity className="bg-gray-200 px-6 py-3 rounded-lg">
-            <Text className="text-gray-800 font-semibold text-center">
-              Create Account
-            </Text>
-          </TouchableOpacity>
+        <View style={styles.buttonContainer}>
+          <Button variant="default">Sign In</Button>
+          <Button variant="outline">Create Account</Button>
         </View>
 
         {/* Coffee Journal Preview */}
-        <View className="mt-6">
-          <Text className="text-xl font-bold text-gray-800 mb-3">
-            My Coffee Journal
-          </Text>
-          <View className="p-6 bg-gray-50 rounded-lg">
-            <Text className="text-gray-600 text-center">
-              Your rated coffees and favorites will appear here.
-            </Text>
-          </View>
+        <View>
+          <Text style={styles.sectionTitle}>My Coffee Journal</Text>
+          <Card>
+            <CardContent>
+              <Text style={styles.emptyText}>
+                Your rated coffees and favorites will appear here.
+              </Text>
+            </CardContent>
+          </Card>
         </View>
       </View>
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#FFFCF0",
+  },
+  content: {
+    padding: 16,
+  },
+  header: {
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  avatarOuter: {
+    width: 96,
+    height: 96,
+    backgroundColor: "rgba(218, 112, 44, 0.2)",
+    borderRadius: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+  avatarInner: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#DA702C",
+  },
+  userName: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#1C1B1A",
+  },
+  userHandle: {
+    color: "#878580",
+  },
+  statsCard: {
+    marginBottom: 24,
+  },
+  statsRow: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    padding: 16,
+  },
+  statItem: {
+    alignItems: "center",
+  },
+  statNumber: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#BC5215",
+  },
+  statLabel: {
+    color: "#6F6E69",
+  },
+  buttonContainer: {
+    gap: 12,
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1C1B1A",
+    marginBottom: 12,
+  },
+  emptyText: {
+    color: "#6F6E69",
+    textAlign: "center",
+    paddingVertical: 16,
+  },
+});

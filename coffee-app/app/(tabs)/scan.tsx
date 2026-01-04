@@ -1,30 +1,76 @@
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
+import Button from "../../components/ui/Button";
+import { Card, CardHeader, CardContent } from "../../components/ui/Card";
 
 export default function ScanScreen() {
   return (
-    <View className="flex-1 bg-black items-center justify-center">
-      <View className="bg-white p-8 rounded-lg mx-4">
-        <Text className="text-2xl font-bold text-gray-800 mb-4 text-center">
-          Coffee Scanner
-        </Text>
-        <Text className="text-gray-600 text-center mb-6">
-          Use your camera to scan coffee bag labels and automatically extract
-          information.
-        </Text>
-        <TouchableOpacity className="bg-amber-700 px-6 py-3 rounded-lg">
-          <Text className="text-white font-semibold text-center">
-            Open Camera
-          </Text>
-        </TouchableOpacity>
-        <View className="mt-6 p-4 bg-gray-50 rounded-lg">
-          <Text className="text-sm text-gray-600 mb-2">Features:</Text>
-          <Text className="text-sm text-gray-500">• OCR text extraction</Text>
-          <Text className="text-sm text-gray-500">• Barcode scanning</Text>
-          <Text className="text-sm text-gray-500">
-            • Auto-fill coffee details
-          </Text>
-        </View>
+    <View style={styles.container}>
+      <View style={styles.cardContainer}>
+        <Card>
+          <CardHeader>
+            <Text style={styles.title}>Coffee Scanner</Text>
+          </CardHeader>
+          <CardContent>
+            <Text style={styles.description}>
+              Use your camera to scan coffee bag labels and automatically
+              extract information.
+            </Text>
+            <Button variant="default" style={styles.button}>
+              Open Camera
+            </Button>
+            <View style={styles.featuresBox}>
+              <Text style={styles.featuresTitle}>Features:</Text>
+              <Text style={styles.featureItem}>OCR text extraction</Text>
+              <Text style={styles.featureItem}>Barcode scanning</Text>
+              <Text style={styles.featureItem}>Auto-fill coffee details</Text>
+            </View>
+          </CardContent>
+        </Card>
       </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#1C1B1A",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cardContainer: {
+    paddingHorizontal: 16,
+    width: "100%",
+    maxWidth: 400,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#1C1B1A",
+    textAlign: "center",
+  },
+  description: {
+    color: "#6F6E69",
+    textAlign: "center",
+    marginBottom: 24,
+  },
+  button: {
+    marginBottom: 16,
+  },
+  featuresBox: {
+    padding: 16,
+    backgroundColor: "#F2F0E5",
+    borderRadius: 8,
+  },
+  featuresTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#575653",
+    marginBottom: 8,
+  },
+  featureItem: {
+    fontSize: 14,
+    color: "#6F6E69",
+    marginBottom: 4,
+  },
+});

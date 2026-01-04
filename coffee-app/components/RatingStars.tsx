@@ -8,6 +8,34 @@ interface RatingStarsProps {
   interactive?: boolean;
 }
 
+const starSizes = {
+  sm: { size: 14, gap: 2 },
+  md: { size: 20, gap: 3 },
+  lg: { size: 28, gap: 4 },
+};
+
+function Star({ filled, size }: { filled: boolean; size: number }) {
+  return (
+    <View
+      style={{
+        width: size,
+        height: size,
+        marginRight: 2,
+      }}
+    >
+      <View
+        style={{
+          width: size,
+          height: size,
+          backgroundColor: filled ? "#D0A215" : "#CECDC3",
+          transform: [{ rotate: "45deg" }],
+          borderRadius: 2,
+        }}
+      />
+    </View>
+  );
+}
+
 export default function RatingStars({
   rating,
   onRatingChange,
@@ -16,12 +44,7 @@ export default function RatingStars({
   interactive = false,
 }: RatingStarsProps) {
   const stars = [1, 2, 3, 4, 5];
-
-  const sizeClasses = {
-    sm: "text-base",
-    md: "text-2xl",
-    lg: "text-4xl",
-  };
+  const { size: starSize } = starSizes[size];
 
   const handlePress = (value: number) => {
     if (interactive && onRatingChange) {
@@ -33,22 +56,19 @@ export default function RatingStars({
     <View className="flex-row items-center">
       {stars.map((star) => {
         const filled = star <= Math.round(rating);
-        const StarComponent = interactive ? TouchableOpacity : View;
 
-        return (
-          <StarComponent
-            key={star}
-            onPress={() => handlePress(star)}
-            disabled={!interactive}
-          >
-            <Text className={`${sizeClasses[size]} ${filled ? "opacity-100" : "opacity-30"}`}>
-              ⭐
-            </Text>
-          </StarComponent>
-        );
+        if (interactive) {
+          return (
+            <TouchableOpacity key={star} onPress={() => handlePress(star)}>
+              <Star filled={filled} size={starSize} />
+            </TouchableOpacity>
+          );
+        }
+
+        return <Star key={star} filled={filled} size={starSize} />;
       })}
       {showNumber && (
-        <Text className="ml-2 text-gray-600 font-semibold">
+        <Text className="ml-2 text-flexoki-base-600 font-semibold">
           {rating.toFixed(1)}
         </Text>
       )}
