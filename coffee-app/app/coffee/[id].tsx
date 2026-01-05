@@ -17,12 +17,15 @@ import {
   useCoffeeReviews,
   useCreateReview,
   useSession,
+  useRecipeVotes,
+  useRoasterLocations,
 } from "../../lib/queries";
 import RatingStars from "../../components/RatingStars";
 import ReviewCard from "../../components/ReviewCard";
 import TasteSlider from "../../components/TasteSlider";
 import RecipeStarGraph from "../../components/RecipeStarGraph";
 import RoasterMapPreview from "../../components/RoasterMapPreview";
+import RoasterLocationsMap from "../../components/RoasterLocationsMap";
 import CoffeeCarousel from "../../components/CoffeeCarousel";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 
@@ -46,6 +49,10 @@ export default function CoffeeDetailScreen() {
   const { data: session } = useSession();
   const { data: coffee, isLoading } = useCoffee(id);
   const { data: reviews, isLoading: isLoadingReviews } = useCoffeeReviews(id);
+  const { data: recipeVotes } = useRecipeVotes(id);
+  const { data: roasterLocations } = useRoasterLocations(
+    coffee?.roaster_id || ""
+  );
   const createReview = useCreateReview();
 
   // Handlers
@@ -117,12 +124,16 @@ export default function CoffeeDetailScreen() {
     );
   }
 
-  // Placeholder data for features not in DB yet
-  const placeholderRecipes = {
-    coldBrew: 45,
-    decaffeinated: 20,
-    espresso: 85,
-    filter: 60,
+  // Convert recipe votes to graph data
+  const recipeGraphData = {
+    coldBrew:
+      recipeVotes?.find((v) => v.recipe_type === "cold_brew")?.percentage || 0,
+    decaffeinated:
+      recipeVotes?.find((v) => v.recipe_type === "decaf")?.percentage || 0,
+    espresso:
+      recipeVotes?.find((v) => v.recipe_type === "espresso")?.percentage || 0,
+    filter:
+      recipeVotes?.find((v) => v.recipe_type === "filter")?.percentage || 0,
   };
 
   const placeholderSimilarCoffees = [
@@ -282,17 +293,35 @@ export default function CoffeeDetailScreen() {
         </View>
 
         {/* B. Purchase Module */}
-        <View className="px-4 py-6 bg-[#FFFCF0] border-y border-[#CECDC3]">
-          <View className="flex-row items-baseline mb-3">
-            <Text className="text-3xl font-bold text-[#1C1B1A]">€4.55</Text>
-            <Text className="text-sm text-[#878580] ml-2">/200gr</Text>
+        {coffee.price && (
+          <View className="px-4 py-6 bg-[#FFFCF0] border-y border-[#CECDC3]">
+            <View className="flex-row items-baseline mb-3">
+              <Text className="text-3xl font-bold text-[#1C1B1A]">
+                {coffee.price_currency === "EUR" ? "€" : "$"}
+                {coffee.price.toFixed(2)}
+              </Text>
+              <Text className="text-sm text-[#878580] ml-2">
+                /{coffee.weight || 250}gr
+              </Text>
+            </View>
+            <TouchableOpacity
+              className="bg-[#BC5215] py-4 rounded-lg"
+              onPress={() => {
+                if (coffee.product_url) {
+                  // Open URL in browser
+                  Alert.alert(
+                    "Buy Coffee",
+                    `This will open: ${coffee.product_url}`
+                  );
+                }
+              }}
+            >
+              <Text className="text-white font-bold text-center text-lg">
+                Buy now
+              </Text>
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity className="bg-[#BC5215] py-4 rounded-lg">
-            <Text className="text-white font-bold text-center text-lg">
-              Buy now
-            </Text>
-          </TouchableOpacity>
-        </View>
+        )}
 
         {/* D. Summary Section */}
         <View className="px-4 py-6">
@@ -403,10 +432,37 @@ export default function CoffeeDetailScreen() {
             Based on {reviewCount} user reviews
           </Text>
 
-          {/* Sliders - Placeholder values */}
-          <TasteSlider leftLabel="Light" rightLabel="Bold" value={65} />
-          <TasteSlider leftLabel="Dry" rightLabel="Sweet" value={72} />
-          <TasteSlider leftLabel="Soft" rightLabel="Acidic" value={45} />
+          {/* Sliders - Real values from database */}
+          {coffee.taste_body !== null && (
+            <TasteSlider
+              leftLabel="Light"
+              rightLabel="Bold"
+              value={coffee.taste_body}
+            />
+          )}
+          {coffee.taste_sweetness !== null && (
+            <TasteSlider
+              leftLabel="Dry"
+              rightLabel="Sweet"
+              value={coffee.taste_sweetness}
+            />
+          )}
+          {coffee.taste_acidity !== null && (
+            <TasteSlider
+              leftLabel="Soft"
+              rightLabel="Acidic"
+              value={coffee.taste_acidity}
+            />
+          )}
+
+          {/* Flavor Description */}
+          {coffee.flavor_description && (
+            <View className="mt-4 p-4 bg-white rounded-lg border border-[#CECDC3]">
+              <Text className="text-sm text-[#6F6E69] leading-6">
+                {coffee.flavor_description}
+              </Text>
+            </View>
+          )}
 
           {/* Flavor Tags */}
           <View className="mt-6">
@@ -534,10 +590,16 @@ export default function CoffeeDetailScreen() {
           <Text className="text-xl font-bold text-[#1C1B1A] mb-4">
             Recommended Recipes
           </Text>
-          <RecipeStarGraph recipes={placeholderRecipes} />
-          <Text className="text-xs text-[#878580] text-center mt-3">
-            Placeholder voting data
-          </Text>
+          <RecipeStarGraph recipes={recipeGraphData} />
+          {recipeVotes && recipeVotes.length > 0 ? (
+            <Text className="text-xs text-[#878580] text-center mt-3">
+              Based on {recipeVotes.reduce((sum, v) => sum + (v.vote_count || 0), 0)} votes
+            </Text>
+          ) : (
+            <Text className="text-xs text-[#878580] text-center mt-3">
+              No votes yet. Be the first to vote!
+            </Text>
+          )}
         </View>
 
         {/* J. Coffee Shop Info */}
@@ -560,9 +622,17 @@ export default function CoffeeDetailScreen() {
             </View>
           </View>
 
-          <RoasterMapPreview
-            location={coffee.roasters?.location || "Location unknown"}
-          />
+          {/* Roaster Locations Map */}
+          {roasterLocations && roasterLocations.length > 0 ? (
+            <RoasterLocationsMap
+              locations={roasterLocations}
+              roasterName={coffee.roasters?.name}
+            />
+          ) : (
+            <RoasterMapPreview
+              location={coffee.roasters?.location || "Location unknown"}
+            />
+          )}
         </View>
 
         {/* L. Recommendations */}
