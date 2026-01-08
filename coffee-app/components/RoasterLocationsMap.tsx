@@ -1,7 +1,8 @@
-import { View, Text, TouchableOpacity, Modal, StyleSheet } from "react-native";
-import { useState } from "react";
+import { View, Text, TouchableOpacity, Modal, StyleSheet, ActivityIndicator } from "react-native";
+import { useState, useEffect } from "react";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
+import { geocodeAddress } from "../lib/geocoding";
 
 type Location = {
   id: string;
@@ -27,6 +28,41 @@ export default function RoasterLocationsMap({
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(
     null
   );
+  const [geocodedLocations, setGeocodedLocations] = useState<Location[]>(locations);
+  const [isGeocoding, setIsGeocoding] = useState(false);
+
+  // Geocode locations that don't have coordinates
+  useEffect(() => {
+    async function geocodeLocations() {
+      const locationsWithoutCoords = locations.filter(
+        (loc) => !loc.latitude || !loc.longitude
+      );
+
+      if (locationsWithoutCoords.length === 0) {
+        setGeocodedLocations(locations);
+        return;
+      }
+
+      setIsGeocoding(true);
+      const updated = await Promise.all(
+        locations.map(async (loc) => {
+          if (loc.latitude && loc.longitude) {
+            return loc;
+          }
+
+          const fullAddress = `${loc.address}, ${loc.postal_code || ''} ${loc.city || ''}`.trim();
+          const coords = await geocodeAddress(fullAddress);
+
+          return coords ? { ...loc, ...coords } : loc;
+        })
+      );
+
+      setGeocodedLocations(updated);
+      setIsGeocoding(false);
+    }
+
+    geocodeLocations();
+  }, [locations]);
 
   if (!locations || locations.length === 0) {
     return (
@@ -38,8 +74,20 @@ export default function RoasterLocationsMap({
     );
   }
 
-  // Filter locations that have coordinates
-  const locationsWithCoords = locations.filter(
+  // Show loading while geocoding
+  if (isGeocoding) {
+    return (
+      <View className="bg-[#FFFCF0] rounded-lg border border-[#CECDC3] p-8">
+        <ActivityIndicator size="large" color="#BC5215" />
+        <Text className="text-[#6F6E69] text-center mt-3">
+          Loading map locations...
+        </Text>
+      </View>
+    );
+  }
+
+  // Filter locations that have coordinates (after geocoding)
+  const locationsWithCoords = geocodedLocations.filter(
     (loc) => loc.latitude !== null && loc.longitude !== null
   );
 

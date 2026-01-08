@@ -21,7 +21,7 @@ export default function RootLayout() {
         }}
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="coffee/[id]" options={{ title: "Coffee Details" }} />
+        <Stack.Screen name="coffee/[id]" options={{ title: "Coffee Details", headerShown: false }} />
         <Stack.Screen name="roaster/[id]" options={{ title: "Roaster" }} />
         <Stack.Screen name="user/[id]" options={{ title: "Profile" }} />
       </Stack>

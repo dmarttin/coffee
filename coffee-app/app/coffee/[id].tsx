@@ -23,7 +23,6 @@ import {
 import RatingStars from "../../components/RatingStars";
 import ReviewCard from "../../components/ReviewCard";
 import TasteSlider from "../../components/TasteSlider";
-import RecipeStarGraph from "../../components/RecipeStarGraph";
 import RoasterMapPreview from "../../components/RoasterMapPreview";
 import RoasterLocationsMap from "../../components/RoasterLocationsMap";
 import CoffeeCarousel from "../../components/CoffeeCarousel";
@@ -124,16 +123,19 @@ export default function CoffeeDetailScreen() {
     );
   }
 
-  // Convert recipe votes to graph data
-  const recipeGraphData = {
-    coldBrew:
-      recipeVotes?.find((v) => v.recipe_type === "cold_brew")?.percentage || 0,
-    decaffeinated:
-      recipeVotes?.find((v) => v.recipe_type === "decaf")?.percentage || 0,
-    espresso:
-      recipeVotes?.find((v) => v.recipe_type === "espresso")?.percentage || 0,
-    filter:
-      recipeVotes?.find((v) => v.recipe_type === "filter")?.percentage || 0,
+  // Recipe icons and labels mapping
+  const recipeIcons: Record<string, string> = {
+    filter: '☕',
+    espresso: '🔥',
+    cold_brew: '🧊',
+    decaf: '💤',
+  };
+
+  const recipeLabels: Record<string, string> = {
+    filter: 'Filter',
+    espresso: 'Espresso',
+    cold_brew: 'Cold Brew',
+    decaf: 'Decaffeinated',
   };
 
   const placeholderSimilarCoffees = [
@@ -590,16 +592,44 @@ export default function CoffeeDetailScreen() {
           <Text className="text-xl font-bold text-[#1C1B1A] mb-4">
             Recommended Recipes
           </Text>
-          <RecipeStarGraph recipes={recipeGraphData} />
-          {recipeVotes && recipeVotes.length > 0 ? (
-            <Text className="text-xs text-[#878580] text-center mt-3">
-              Based on {recipeVotes.reduce((sum, v) => sum + (v.vote_count || 0), 0)} votes
-            </Text>
-          ) : (
-            <Text className="text-xs text-[#878580] text-center mt-3">
-              No votes yet. Be the first to vote!
-            </Text>
-          )}
+
+          <View className="gap-3">
+            {recipeVotes && recipeVotes.length > 0 ? (
+              <>
+                {recipeVotes
+                  .sort((a, b) => (b.percentage || 0) - (a.percentage || 0))
+                  .map((vote) => (
+                    <View
+                      key={vote.recipe_type}
+                      className="flex-row items-center justify-between bg-white rounded-lg border border-[#CECDC3] p-4"
+                    >
+                      <View className="flex-row items-center flex-1">
+                        <Text className="text-2xl mr-3">
+                          {recipeIcons[vote.recipe_type] || '☕'}
+                        </Text>
+                        <Text className="text-[#1C1B1A] font-semibold">
+                          {recipeLabels[vote.recipe_type] || vote.recipe_type}
+                        </Text>
+                      </View>
+                      <View className="bg-[#BC5215] px-3 py-1 rounded-full">
+                        <Text className="text-white font-bold">
+                          {vote.percentage?.toFixed(0)}%
+                        </Text>
+                      </View>
+                    </View>
+                  ))}
+                <Text className="text-xs text-[#878580] text-center mt-3">
+                  Based on {recipeVotes.reduce((sum, v) => sum + (v.vote_count || 0), 0)} votes
+                </Text>
+              </>
+            ) : (
+              <View className="bg-white rounded-lg border border-[#CECDC3] p-6">
+                <Text className="text-[#6F6E69] text-center">
+                  No recipe recommendations yet
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
 
         {/* J. Coffee Shop Info */}
