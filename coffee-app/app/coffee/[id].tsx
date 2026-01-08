@@ -8,10 +8,9 @@ import {
   Modal,
   TextInput,
   Alert,
-  Animated,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useState, useRef } from "react";
+import { useState } from "react";
 import {
   useCoffee,
   useCoffeeReviews,
@@ -31,7 +30,6 @@ import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 export default function CoffeeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const scrollY = useRef(new Animated.Value(0)).current;
 
   // State
   const [showRatingModal, setShowRatingModal] = useState(false);
@@ -89,13 +87,6 @@ export default function CoffeeDetailScreen() {
       : 0;
 
   const reviewCount = reviews?.length || 0;
-
-  // Navigation bar animation
-  const headerOpacity = scrollY.interpolate({
-    inputRange: [0, 100],
-    outputRange: [0, 1],
-    extrapolate: "clamp",
-  });
 
   // Loading state
   if (isLoading) {
@@ -164,41 +155,9 @@ export default function CoffeeDetailScreen() {
 
   return (
     <>
-      {/* Animated Navigation Bar */}
-      <Animated.View
-        className="absolute top-0 left-0 right-0 z-50 px-4 py-3 flex-row justify-between items-center"
-        style={{
-          backgroundColor: headerOpacity.interpolate({
-            inputRange: [0, 1],
-            outputRange: ["rgba(255, 255, 255, 0)", "rgba(255, 255, 255, 1)"],
-          }),
-          borderBottomWidth: headerOpacity,
-          borderBottomColor: "#CECDC3",
-        }}
-      >
-        <TouchableOpacity onPress={() => router.back()} className="p-2">
-          <Ionicons name="arrow-back" size={24} color="#1C1B1A" />
-        </TouchableOpacity>
-        <View className="flex-row gap-4">
-          <TouchableOpacity className="p-2">
-            <Ionicons name="share-outline" size={24} color="#1C1B1A" />
-          </TouchableOpacity>
-          <TouchableOpacity className="p-2">
-            <Ionicons name="cart-outline" size={24} color="#1C1B1A" />
-          </TouchableOpacity>
-        </View>
-      </Animated.View>
-
-      <Animated.ScrollView
-        className="flex-1 bg-white"
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: false }
-        )}
-        scrollEventThrottle={16}
-      >
+      <ScrollView className="flex-1 bg-white">
         {/* A. Hero Section */}
-        <View className="px-4 pt-16 pb-6">
+        <View className="px-4 pt-4 pb-6">
           <View className="flex-row gap-4">
             {/* Left Column - Image (40%) */}
             <View className="w-[40%]">
@@ -678,7 +637,7 @@ export default function CoffeeDetailScreen() {
 
         {/* Bottom Spacing */}
         <View className="h-8" />
-      </Animated.ScrollView>
+      </ScrollView>
 
       {/* Rating Modal */}
       <Modal
