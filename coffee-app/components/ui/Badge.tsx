@@ -1,91 +1,58 @@
-import { View, Text } from "react-native";
-import { ReactNode, isValidElement } from "react";
+import { cva, type VariantProps } from "class-variance-authority";
+import * as React from "react";
+import { View } from "react-native";
+import { cn } from "../../lib/utils";
+import { TextClassContext } from "./Text";
 
-interface BadgeProps {
-  children: ReactNode;
-  variant?:
-    | "default"
-    | "secondary"
-    | "outline"
-    | "orange"
-    | "yellow"
-    | "green"
-    | "blue";
-  size?: "default" | "sm";
-  className?: string;
-}
+const badgeVariants = cva(
+  "flex flex-row items-center rounded-full px-2.5 py-0.5 web:transition-colors web:focus:outline-none web:focus:ring-2 web:focus:ring-ring web:focus:ring-offset-2",
+  {
+    variants: {
+      variant: {
+        default: "bg-primary web:hover:opacity-80 active:opacity-80",
+        secondary: "bg-secondary web:hover:opacity-80 active:opacity-80",
+        destructive: "bg-destructive web:hover:opacity-80 active:opacity-80",
+        outline: "border border-border",
+        orange: "bg-orange-100",
+        yellow: "bg-yellow-100",
+        green: "bg-green-100",
+        blue: "bg-blue-100",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  }
+);
 
-export default function Badge({
-  children,
-  variant = "default",
-  size = "default",
-  className = "",
-}: BadgeProps) {
-  const variantStyles = {
-    default: {
-      bg: { backgroundColor: "#1C1B1A" },
-      text: { color: "#FFFCF0" },
+const badgeTextVariants = cva("text-xs font-semibold", {
+  variants: {
+    variant: {
+      default: "text-primary-foreground",
+      secondary: "text-secondary-foreground",
+      destructive: "text-destructive-foreground",
+      outline: "text-foreground",
+      orange: "text-orange-700",
+      yellow: "text-yellow-700",
+      green: "text-green-700",
+      blue: "text-blue-700",
     },
-    secondary: {
-      bg: { backgroundColor: "#E6E4D9" },
-      text: { color: "#1C1B1A" },
-    },
-    outline: {
-      bg: { backgroundColor: "transparent", borderWidth: 1, borderColor: "#B7B5AC" },
-      text: { color: "#1C1B1A" },
-    },
-    orange: {
-      bg: { backgroundColor: "rgba(218, 112, 44, 0.1)" },
-      text: { color: "#BC5215" },
-    },
-    yellow: {
-      bg: { backgroundColor: "rgba(208, 162, 21, 0.1)" },
-      text: { color: "#AD8301" },
-    },
-    green: {
-      bg: { backgroundColor: "rgba(135, 154, 57, 0.1)" },
-      text: { color: "#66800B" },
-    },
-    blue: {
-      bg: { backgroundColor: "rgba(67, 133, 190, 0.1)" },
-      text: { color: "#205EA6" },
-    },
-  };
+  },
+  defaultVariants: {
+    variant: "default",
+  },
+});
 
-  const sizeStyles = {
-    default: {
-      container: { paddingHorizontal: 10, paddingVertical: 4 },
-      text: { fontSize: 12 },
-    },
-    sm: {
-      container: { paddingHorizontal: 8, paddingVertical: 2 },
-      text: { fontSize: 12 },
-    },
-  };
+export interface BadgeProps
+  extends React.ComponentPropsWithoutRef<typeof View>,
+    VariantProps<typeof badgeVariants> {}
 
-  const styles = variantStyles[variant];
-  const sizes = sizeStyles[size];
-
+function Badge({ className, variant, ...props }: BadgeProps) {
   return (
-    <View
-      style={[
-        {
-          borderRadius: 9999,
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "center",
-        },
-        styles.bg,
-        sizes.container,
-      ]}
-    >
-      {isValidElement(children) ? (
-        children
-      ) : (
-        <Text style={[{ fontWeight: "500" }, styles.text, sizes.text]}>
-          {children}
-        </Text>
-      )}
-    </View>
+    <TextClassContext.Provider value={badgeTextVariants({ variant })}>
+      <View className={cn(badgeVariants({ variant }), className)} {...props} />
+    </TextClassContext.Provider>
   );
 }
+
+export { Badge, badgeTextVariants, badgeVariants };

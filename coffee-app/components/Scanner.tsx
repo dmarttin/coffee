@@ -5,9 +5,16 @@ import { CameraView, Camera } from "expo-camera";
 interface ScannerProps {
   onScan?: (data: string) => void;
   onClose?: () => void;
+  variant?: "full" | "embedded";
+  resetToken?: number;
 }
 
-export default function Scanner({ onScan, onClose }: ScannerProps) {
+export default function Scanner({
+  onScan,
+  onClose,
+  variant = "full",
+  resetToken,
+}: ScannerProps) {
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scanned, setScanned] = useState(false);
 
@@ -17,6 +24,10 @@ export default function Scanner({ onScan, onClose }: ScannerProps) {
       setHasPermission(status === "granted");
     })();
   }, []);
+
+  useEffect(() => {
+    setScanned(false);
+  }, [resetToken]);
 
   const handleBarCodeScanned = ({ data }: { data: string }) => {
     setScanned(true);
@@ -40,6 +51,20 @@ export default function Scanner({ onScan, onClose }: ScannerProps) {
         <TouchableOpacity className="bg-amber-700 px-6 py-3 rounded-lg" onPress={onClose}>
           <Text className="text-white font-semibold">Close</Text>
         </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (variant === "embedded") {
+    return (
+      <View className="flex-1">
+        <CameraView
+          style={StyleSheet.absoluteFillObject}
+          onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+          barcodeScannerSettings={{
+            barcodeTypes: ["qr", "ean13", "ean8", "upc_a", "upc_e"],
+          }}
+        />
       </View>
     );
   }

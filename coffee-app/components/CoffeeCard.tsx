@@ -1,14 +1,9 @@
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  Image,
-  StyleSheet,
-} from "react-native";
+import { View, Pressable, Image } from "react-native";
 import { Link } from "expo-router";
 import RatingStars from "./RatingStars";
-import Badge from "./ui/Badge";
+import { Badge } from "./ui/Badge";
 import { Card } from "./ui/Card";
+import { Text } from "./ui/Text";
 
 interface CoffeeCardProps {
   id: string;
@@ -37,49 +32,56 @@ export default function CoffeeCard({
 }: CoffeeCardProps) {
   return (
     <Link href={`/coffee/${id}`} asChild>
-      <TouchableOpacity style={styles.container}>
-        <Card style={styles.card}>
-          <View style={styles.imageContainer}>
+      <Pressable className="mb-3">
+        <Card className="overflow-hidden">
+          <View className="w-full h-48 bg-secondary items-center justify-center">
             {bagImageUrl ? (
               <Image
                 source={{ uri: bagImageUrl }}
-                style={styles.image}
+                className="w-full h-full"
                 resizeMode="cover"
               />
             ) : (
-              <View style={styles.placeholderContainer}>
-                <View style={styles.placeholderInner} />
+              <View className="w-20 h-20 rounded-full bg-border items-center justify-center">
+                <View className="w-10 h-10 rounded-full bg-muted-foreground/50" />
               </View>
             )}
           </View>
 
-          <View style={styles.content}>
-            <Text style={styles.name} numberOfLines={1}>
+          <View className="p-4">
+            <Text className="text-lg font-semibold text-foreground mb-1" numberOfLines={1}>
               {name}
             </Text>
 
-            <View style={styles.roasterRow}>
+            <View className="flex-row items-center mb-2">
               {roasterLogoUrl && (
-                <Image source={{ uri: roasterLogoUrl }} style={styles.logo} />
+                <Image
+                  source={{ uri: roasterLogoUrl }}
+                  className="w-4 h-4 rounded-full mr-1.5"
+                />
               )}
-              <Text style={styles.roasterName}>{roasterName}</Text>
+              <Text className="text-sm text-muted-foreground font-medium">
+                {roasterName}
+              </Text>
             </View>
 
             {(origin || process) && (
-              <Text style={styles.originProcess}>
+              <Text className="text-sm text-muted-foreground mb-3">
                 {[origin, process].filter(Boolean).join(" • ")}
               </Text>
             )}
 
             {reviewCount > 0 && (
-              <View style={styles.ratingRow}>
+              <View className="flex-row items-center mb-3">
                 <RatingStars rating={averageRating} size="sm" />
-                <Text style={styles.reviewCount}>({reviewCount})</Text>
+                <Text className="ml-2 text-xs text-muted-foreground">
+                  ({reviewCount})
+                </Text>
               </View>
             )}
 
             {tastingNotes.length > 0 && (
-              <View style={styles.badgeContainer}>
+              <View className="flex-row flex-wrap gap-1.5">
                 {tastingNotes.slice(0, 3).map((note, index) => (
                   <Badge
                     key={note}
@@ -90,100 +92,20 @@ export default function CoffeeCard({
                           ? "yellow"
                           : "green"
                     }
-                    size="sm"
                   >
-                    {note}
+                    <Text>{note}</Text>
                   </Badge>
                 ))}
                 {tastingNotes.length > 3 && (
-                  <Badge variant="secondary" size="sm">
-                    +{tastingNotes.length - 3}
+                  <Badge variant="secondary">
+                    <Text>+{tastingNotes.length - 3}</Text>
                   </Badge>
                 )}
               </View>
             )}
           </View>
         </Card>
-      </TouchableOpacity>
+      </Pressable>
     </Link>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    marginBottom: 12,
-  },
-  card: {
-    overflow: "hidden",
-  },
-  imageContainer: {
-    width: "100%",
-    height: 192,
-    backgroundColor: "#F2F0E5",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  image: {
-    width: "100%",
-    height: "100%",
-  },
-  placeholderContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "#CECDC3",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  placeholderInner: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#B7B5AC",
-  },
-  content: {
-    padding: 16,
-  },
-  name: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#1C1B1A",
-    marginBottom: 4,
-  },
-  roasterRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  logo: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    marginRight: 6,
-  },
-  roasterName: {
-    fontSize: 14,
-    color: "#6F6E69",
-    fontWeight: "500",
-  },
-  originProcess: {
-    fontSize: 14,
-    color: "#878580",
-    marginBottom: 12,
-  },
-  ratingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  reviewCount: {
-    marginLeft: 8,
-    fontSize: 12,
-    color: "#878580",
-  },
-  badgeContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
-  },
-});

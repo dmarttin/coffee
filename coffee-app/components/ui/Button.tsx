@@ -1,111 +1,97 @@
-import {
-  TouchableOpacity,
-  Text,
-  ActivityIndicator,
-  StyleSheet,
-  ViewStyle,
-} from "react-native";
-import { ReactNode, isValidElement } from "react";
+import { cva, type VariantProps } from "class-variance-authority";
+import * as React from "react";
+import { Pressable, ActivityIndicator } from "react-native";
+import { cn } from "../../lib/utils";
+import { TextClassContext } from "./Text";
 
-interface ButtonProps {
-  children: ReactNode;
-  onPress?: () => void;
-  variant?: "default" | "secondary" | "outline" | "ghost";
-  size?: "default" | "sm" | "lg";
-  disabled?: boolean;
-  loading?: boolean;
-  style?: ViewStyle;
-}
-
-export default function Button({
-  children,
-  onPress,
-  variant = "default",
-  size = "default",
-  disabled = false,
-  loading = false,
-  style,
-}: ButtonProps) {
-  const variantStyles = {
-    default: {
-      button: { backgroundColor: "#1C1B1A" },
-      text: { color: "#FFFCF0" },
-    },
-    secondary: {
-      button: { backgroundColor: "#E6E4D9" },
-      text: { color: "#1C1B1A" },
-    },
-    outline: {
-      button: {
-        backgroundColor: "transparent",
-        borderWidth: 1,
-        borderColor: "#B7B5AC",
+const buttonVariants = cva(
+  "group flex flex-row items-center justify-center rounded-md web:ring-offset-background web:transition-colors web:focus-visible:outline-none web:focus-visible:ring-2 web:focus-visible:ring-ring web:focus-visible:ring-offset-2",
+  {
+    variants: {
+      variant: {
+        default: "bg-primary web:hover:opacity-90 active:opacity-90",
+        destructive: "bg-destructive web:hover:opacity-90 active:opacity-90",
+        outline:
+          "border border-input bg-background web:hover:bg-accent web:hover:text-accent-foreground active:bg-accent",
+        secondary: "bg-secondary web:hover:opacity-80 active:opacity-80",
+        ghost:
+          "web:hover:bg-accent web:hover:text-accent-foreground active:bg-accent",
+        link: "web:underline-offset-4 web:hover:underline web:focus:underline",
       },
-      text: { color: "#1C1B1A" },
+      size: {
+        default: "h-10 px-4 py-2 native:h-12 native:px-5 native:py-3",
+        sm: "h-9 rounded-md px-3",
+        lg: "h-11 rounded-md px-8 native:h-14",
+        icon: "h-10 w-10",
+      },
     },
-    ghost: {
-      button: { backgroundColor: "transparent" },
-      text: { color: "#1C1B1A" },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
     },
+  }
+);
+
+const buttonTextVariants = cva(
+  "web:whitespace-nowrap text-sm native:text-base font-medium text-foreground web:transition-colors",
+  {
+    variants: {
+      variant: {
+        default: "text-primary-foreground",
+        destructive: "text-destructive-foreground",
+        outline: "group-active:text-accent-foreground",
+        secondary: "text-secondary-foreground group-active:text-secondary-foreground",
+        ghost: "group-active:text-accent-foreground",
+        link: "text-primary group-active:underline",
+      },
+      size: {
+        default: "",
+        sm: "",
+        lg: "native:text-lg",
+        icon: "",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  }
+);
+
+type ButtonProps = React.ComponentPropsWithoutRef<typeof Pressable> &
+  VariantProps<typeof buttonVariants> & {
+    loading?: boolean;
   };
 
-  const sizeStyles = {
-    default: {
-      button: { paddingHorizontal: 16, paddingVertical: 10 },
-      text: { fontSize: 16 },
-    },
-    sm: {
-      button: { paddingHorizontal: 12, paddingVertical: 6 },
-      text: { fontSize: 14 },
-    },
-    lg: {
-      button: { paddingHorizontal: 24, paddingVertical: 12 },
-      text: { fontSize: 18 },
-    },
-  };
+const Button = React.forwardRef<React.ElementRef<typeof Pressable>, ButtonProps>(
+  ({ className, variant, size, loading, disabled, children, ...props }, ref) => {
+    return (
+      <TextClassContext.Provider
+        value={buttonTextVariants({ variant, size })}
+      >
+        <Pressable
+          className={cn(
+            buttonVariants({ variant, size, className }),
+            (disabled || loading) && "opacity-50 web:pointer-events-none"
+          )}
+          ref={ref}
+          disabled={disabled || loading}
+          {...props}
+        >
+          {loading ? (
+            <ActivityIndicator
+              size="small"
+              color={variant === "default" || variant === "destructive" ? "#FFFCF0" : "#1C1B1A"}
+            />
+          ) : (
+            children
+          )}
+        </Pressable>
+      </TextClassContext.Provider>
+    );
+  }
+);
+Button.displayName = "Button";
 
-  const variantStyle = variantStyles[variant];
-  const sizeStyle = sizeStyles[size];
-
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      disabled={disabled || loading}
-      style={[
-        styles.button,
-        variantStyle.button,
-        sizeStyle.button,
-        (disabled || loading) && styles.disabled,
-        style,
-      ]}
-    >
-      {loading ? (
-        <ActivityIndicator
-          color={variant === "default" ? "#FFFCF0" : "#100F0F"}
-          size="small"
-        />
-      ) : isValidElement(children) ? (
-        children
-      ) : (
-        <Text style={[styles.text, variantStyle.text, sizeStyle.text]}>
-          {children}
-        </Text>
-      )}
-    </TouchableOpacity>
-  );
-}
-
-const styles = StyleSheet.create({
-  button: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 8,
-  },
-  text: {
-    fontWeight: "500",
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-});
+export { Button, buttonTextVariants, buttonVariants };
+export type { ButtonProps };

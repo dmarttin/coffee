@@ -1,14 +1,12 @@
-import {
-  View,
-  Text,
-  FlatList,
-  ActivityIndicator,
-  RefreshControl,
-  StyleSheet,
-} from "react-native";
-import { useState } from "react";
+import { View, FlatList, RefreshControl, ActivityIndicator } from "react-native";
+import { useMemo, useState } from "react";
+import { useRouter } from "expo-router";
 import { useCoffees } from "../../lib/queries";
 import CoffeeCard from "../../components/CoffeeCard";
+import CaptureButton from "../../components/CaptureButton";
+import FilterBar, { type FilterOption } from "../../components/FilterBar";
+import SortDropdown from "../../components/SortDropdown";
+import { Text } from "../../components/ui/Text";
 
 type CoffeeWithRoaster = {
   id: string;
@@ -26,8 +24,11 @@ type CoffeeWithRoaster = {
 };
 
 export default function HomeScreen() {
+  const router = useRouter();
   const { data: coffees, isLoading, refetch } = useCoffees();
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedOrigin, setSelectedOrigin] = useState<string | null>(null);
+  const [sortValue, setSortValue] = useState("recent");
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -37,21 +38,23 @@ export default function HomeScreen() {
 
   if (isLoading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#6F6E69" />
-        <Text style={styles.loadingText}>Loading coffees...</Text>
+      <View className="flex-1 items-center justify-center bg-background">
+        <ActivityIndicator size="large" color="hsl(24, 87%, 41%)" />
+        <Text className="mt-2 text-muted-foreground">Loading coffees...</Text>
       </View>
     );
   }
 
   if (!coffees || coffees.length === 0) {
     return (
-      <View style={styles.emptyContainer}>
-        <View style={styles.emptyIconOuter}>
-          <View style={styles.emptyIconInner} />
+      <View className="flex-1 items-center justify-center bg-background p-8">
+        <View className="w-20 h-20 rounded-full bg-secondary items-center justify-center mb-4">
+          <View className="w-10 h-10 rounded-full bg-muted-foreground/50" />
         </View>
-        <Text style={styles.emptyTitle}>No coffees yet</Text>
-        <Text style={styles.emptySubtitle}>
+        <Text className="text-xl font-semibold text-foreground mb-2">
+          No coffees yet
+        </Text>
+        <Text className="text-muted-foreground text-center">
           The coffee database is empty. Check out the Discover tab to start
           exploring!
         </Text>
@@ -59,25 +62,83 @@ export default function HomeScreen() {
     );
   }
 
+  const origins = useMemo(() => {
+    const values = (coffees as CoffeeWithRoaster[])
+      .map((coffee) => coffee.origin)
+      .filter(Boolean) as string[];
+    return Array.from(new Set(values)).sort();
+  }, [coffees]);
+
+  const filterOptions: FilterOption[] = [
+    {
+      id: "all",
+      label: "All",
+      selected: selectedOrigin === null,
+      onPress: () => setSelectedOrigin(null),
+    },
+    ...origins.map((origin) => ({
+      id: origin,
+      label: origin,
+      selected: selectedOrigin === origin,
+      onPress: () => setSelectedOrigin(origin),
+    })),
+  ];
+
+  const filteredCoffees = useMemo(() => {
+    if (!selectedOrigin) return coffees as CoffeeWithRoaster[];
+    return (coffees as CoffeeWithRoaster[]).filter(
+      (coffee) => coffee.origin === selectedOrigin
+    );
+  }, [coffees, selectedOrigin]);
+
+  const sortedCoffees = useMemo(() => {
+    const data = [...filteredCoffees];
+    if (sortValue === "name-asc") {
+      return data.sort((a, b) => a.name.localeCompare(b.name));
+    }
+    if (sortValue === "name-desc") {
+      return data.sort((a, b) => b.name.localeCompare(a.name));
+    }
+    return data;
+  }, [filteredCoffees, sortValue]);
+
   return (
-    <View style={styles.container}>
+    <View className="flex-1 bg-background">
       <FlatList
-        data={coffees as CoffeeWithRoaster[]}
+        data={sortedCoffees}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={{ padding: 16, paddingBottom: 120 }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#6F6E69"
+            tintColor="hsl(24, 87%, 41%)"
           />
         }
         ListHeaderComponent={
-          <View style={styles.header}>
-            <Text style={styles.title}>Coffee Feed</Text>
-            <Text style={styles.subtitle}>
+          <View className="mb-4">
+            <Text className="text-2xl font-bold text-foreground mb-2">
+              Coffee Feed
+            </Text>
+            <Text className="text-muted-foreground">
               Discover the latest coffees from our community
             </Text>
+            <View className="mt-4 gap-3">
+              <SortDropdown
+                label="Sort by"
+                value={sortValue}
+                onValueChange={setSortValue}
+                options={[
+                  { label: "Newest", value: "recent" },
+                  { label: "Name A-Z", value: "name-asc" },
+                  { label: "Name Z-A", value: "name-desc" },
+                ]}
+              />
+              <FilterBar
+                filters={filterOptions}
+                onClear={() => setSelectedOrigin(null)}
+              />
+            </View>
           </View>
         }
         renderItem={({ item }) => (
@@ -93,70 +154,13 @@ export default function HomeScreen() {
           />
         )}
       />
+      <View className="absolute bottom-8 right-6">
+        <CaptureButton
+          size="lg"
+          onPress={() => router.push("/(tabs)/scan")}
+          label="Scan"
+        />
+      </View>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#FFFCF0",
-  },
-  centered: {
-    flex: 1,
-    backgroundColor: "#FFFCF0",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  loadingText: {
-    color: "#878580",
-    marginTop: 8,
-  },
-  emptyContainer: {
-    flex: 1,
-    backgroundColor: "#FFFCF0",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 32,
-  },
-  emptyIconOuter: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "#E6E4D9",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-  },
-  emptyIconInner: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#B7B5AC",
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#1C1B1A",
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    color: "#878580",
-    textAlign: "center",
-  },
-  listContent: {
-    padding: 16,
-  },
-  header: {
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#1C1B1A",
-    marginBottom: 8,
-  },
-  subtitle: {
-    color: "#6F6E69",
-  },
-});

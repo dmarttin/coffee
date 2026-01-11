@@ -1,68 +1,84 @@
-import { View, Text, ScrollView, TouchableOpacity } from "react-native";
+import { ScrollView, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
+import { useMemo } from "react";
+import { useRoaster, useRoasterCoffees } from "../../lib/queries";
+import BrandHero from "../../components/BrandHero";
+import BrandInfo from "../../components/BrandInfo";
+import BrandLocations from "../../components/BrandLocations";
+import BrandCoffees from "../../components/BrandCoffees";
+import { Text } from "../../components/ui/Text";
 
 export default function RoasterDetailScreen() {
-  const { id } = useLocalSearchParams();
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const { data: roaster, isLoading } = useRoaster(id ?? "");
+  const { data: roasterCoffees } = useRoasterCoffees(id ?? "");
+
+  const foundedYear = roaster?.created_at
+    ? new Date(roaster.created_at).getFullYear().toString()
+    : undefined;
+
+  const locations = useMemo(() => {
+    if (!roaster?.location) return [];
+    return [
+      {
+        id: "main",
+        name: roaster.name,
+        address: roaster.location,
+      },
+    ];
+  }, [roaster]);
+
+  const coffees = useMemo(() => {
+    if (!roasterCoffees) return [];
+    return roasterCoffees.map((coffee) => ({
+      id: coffee.id,
+      name: coffee.name,
+      roasterName: roaster?.name || "Unknown Roaster",
+      origin: coffee.origin || undefined,
+      process: coffee.process || undefined,
+      bagImageUrl: coffee.bag_image_url || undefined,
+      tastingNotes: coffee.tasting_notes || undefined,
+    }));
+  }, [roasterCoffees, roaster]);
+
+  if (isLoading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-background">
+        <Text className="text-muted-foreground">Loading roaster...</Text>
+      </View>
+    );
+  }
+
+  if (!roaster) {
+    return (
+      <View className="flex-1 items-center justify-center bg-background p-6">
+        <Text className="text-lg font-semibold text-foreground">
+          Roaster not found
+        </Text>
+      </View>
+    );
+  }
 
   return (
-    <ScrollView className="flex-1 bg-white">
-      <View className="p-4">
-        {/* Roaster Logo */}
-        <View className="w-32 h-32 bg-gray-200 rounded-full items-center justify-center mb-4 self-center">
-          <Text className="text-6xl">☕</Text>
-        </View>
+    <ScrollView className="flex-1 bg-background">
+      <View className="p-4 gap-6">
+        <BrandHero
+          name={roaster.name}
+          logoUrl={roaster.logo_url || undefined}
+          description={roaster.description || undefined}
+          founded={foundedYear}
+          location={roaster.location || undefined}
+        />
 
-        {/* Roaster Name */}
-        <Text className="text-2xl font-bold text-gray-800 mb-2 text-center">
-          Roaster Name
-        </Text>
-        <Text className="text-gray-600 text-center mb-4">Location</Text>
+        <BrandInfo
+          founded={foundedYear}
+          location={roaster.location || undefined}
+          story={roaster.description || undefined}
+        />
 
-        {/* Stats */}
-        <View className="flex-row justify-around mb-6 p-4 bg-gray-50 rounded-lg">
-          <View className="items-center">
-            <Text className="text-2xl font-bold text-amber-900">0</Text>
-            <Text className="text-gray-600">Coffees</Text>
-          </View>
-          <View className="items-center">
-            <Text className="text-2xl font-bold text-amber-900">0</Text>
-            <Text className="text-gray-600">Reviews</Text>
-          </View>
-          <View className="items-center">
-            <Text className="text-2xl font-bold text-amber-900">0</Text>
-            <Text className="text-gray-600">Followers</Text>
-          </View>
-        </View>
+        <BrandLocations locations={locations} />
 
-        {/* About */}
-        <Text className="text-xl font-bold text-gray-800 mb-3">About</Text>
-        <Text className="text-gray-600 mb-6">
-          Roaster description and story will be displayed here.
-        </Text>
-
-        {/* Action Buttons */}
-        <View className="flex-row gap-3 mb-6">
-          <TouchableOpacity className="flex-1 bg-amber-700 px-6 py-3 rounded-lg">
-            <Text className="text-white font-semibold text-center">
-              Follow
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity className="flex-1 bg-gray-200 px-6 py-3 rounded-lg">
-            <Text className="text-gray-800 font-semibold text-center">
-              Visit Website
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Coffee Catalog */}
-        <Text className="text-xl font-bold text-gray-800 mb-3">
-          Coffee Catalog
-        </Text>
-        <View className="p-6 bg-gray-50 rounded-lg">
-          <Text className="text-gray-600 text-center">
-            Roaster's coffee catalog will be displayed here.
-          </Text>
-        </View>
+        <BrandCoffees coffees={coffees} />
       </View>
     </ScrollView>
   );

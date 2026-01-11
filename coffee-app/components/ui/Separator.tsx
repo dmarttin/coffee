@@ -1,19 +1,33 @@
+import * as React from "react";
 import { View } from "react-native";
+import { cn } from "../../lib/utils";
 
-interface SeparatorProps {
+interface SeparatorProps extends React.ComponentPropsWithoutRef<typeof View> {
   orientation?: "horizontal" | "vertical";
-  className?: string;
+  decorative?: boolean;
 }
 
-export default function Separator({
-  orientation = "horizontal",
-  className = "",
-}: SeparatorProps) {
-  return (
+const Separator = React.forwardRef<
+  React.ElementRef<typeof View>,
+  SeparatorProps
+>(
+  (
+    { className, orientation = "horizontal", decorative = true, ...props },
+    ref
+  ) => (
     <View
-      className={`bg-flexoki-base-200 ${
-        orientation === "horizontal" ? "h-px w-full" : "w-px h-full"
-      } ${className}`}
+      ref={ref}
+      accessible={!decorative}
+      accessibilityRole={decorative ? "none" : "none"}
+      className={cn(
+        "shrink-0 bg-border",
+        orientation === "horizontal" ? "h-[1px] w-full" : "h-full w-[1px]",
+        className
+      )}
+      {...props}
     />
-  );
-}
+  )
+);
+Separator.displayName = "Separator";
+
+export { Separator };

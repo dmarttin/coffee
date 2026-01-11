@@ -1,31 +1,41 @@
 import {
-  View,
-  Text,
   ScrollView,
-  Image,
-  TouchableOpacity,
+  View,
+  Pressable,
   ActivityIndicator,
   Modal,
   TextInput,
   Alert,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   useCoffee,
+  useCoffeeLocations,
   useCoffeeReviews,
   useCreateReview,
+  useCoffees,
   useSession,
-  useRecipeVotes,
-  useRoasterLocations,
 } from "../../lib/queries";
+import CoffeeHero from "../../components/CoffeeHero";
+import CoffeeRating from "../../components/CoffeeRating";
+import CoffeeInfo from "../../components/CoffeeInfo";
+import CoffeeNotes from "../../components/CoffeeNotes";
+import CoffeeMetrics from "../../components/CoffeeMetrics";
+import ReviewSummary from "../../components/ReviewSummary";
+import ReviewFull from "../../components/ReviewFull";
+import CommentList, { type CommentListItem } from "../../components/CommentList";
+import CommentInput from "../../components/CommentInput";
+import SimilarCoffees from "../../components/SimilarCoffees";
 import RatingStars from "../../components/RatingStars";
-import ReviewCard from "../../components/ReviewCard";
 import TasteSlider from "../../components/TasteSlider";
 import RoasterMapPreview from "../../components/RoasterMapPreview";
-import RoasterLocationsMap from "../../components/RoasterLocationsMap";
-import CoffeeCarousel from "../../components/CoffeeCarousel";
-import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import WhereToFindPreview from "../../components/WhereToFindPreview";
+import { Text } from "../../components/ui/Text";
+import { Button } from "../../components/ui/Button";
+import { Card } from "../../components/ui/Card";
+import { Badge } from "../../components/ui/Badge";
+import { Pencil } from "lucide-react-native";
 
 export default function CoffeeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -35,21 +45,18 @@ export default function CoffeeDetailScreen() {
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [newRating, setNewRating] = useState(0);
   const [newReviewText, setNewReviewText] = useState("");
-  const [summaryTab, setSummaryTab] = useState<"highlights" | "facts">(
-    "highlights"
-  );
-  const [reviewFilter, setReviewFilter] = useState<"helpful" | "recent">(
-    "recent"
-  );
+  const [notes, setNotes] = useState("");
+  const [notesUpdatedAt, setNotesUpdatedAt] = useState<Date | null>(null);
+  const [isEditingNotes, setIsEditingNotes] = useState(false);
+  const [commentText, setCommentText] = useState("");
+  const [comments, setComments] = useState<CommentListItem[]>([]);
 
   // Queries
   const { data: session } = useSession();
-  const { data: coffee, isLoading } = useCoffee(id);
-  const { data: reviews, isLoading: isLoadingReviews } = useCoffeeReviews(id);
-  const { data: recipeVotes } = useRecipeVotes(id);
-  const { data: roasterLocations } = useRoasterLocations(
-    coffee?.roaster_id || ""
-  );
+  const { data: coffee, isLoading } = useCoffee(id!);
+  const { data: allCoffees } = useCoffees();
+  const { data: reviews, isLoading: isLoadingReviews } = useCoffeeReviews(id!);
+  const { data: coffeeLocations = [] } = useCoffeeLocations(id!);
   const createReview = useCreateReview();
 
   // Handlers
@@ -67,7 +74,7 @@ export default function CoffeeDetailScreen() {
 
     try {
       await createReview.mutateAsync({
-        coffee_id: id,
+        coffee_id: id!,
         rating: newRating,
         review_text: newReviewText || undefined,
       });
@@ -80,6 +87,35 @@ export default function CoffeeDetailScreen() {
     }
   };
 
+  const handleToggleNotesEdit = () => {
+    setIsEditingNotes((prev) => {
+      if (prev) {
+        setNotesUpdatedAt(new Date());
+      }
+      return !prev;
+    });
+  };
+
+  const handleDeleteNotes = () => {
+    setNotes("");
+    setNotesUpdatedAt(null);
+  };
+
+  const handleSendComment = () => {
+    if (!commentText.trim()) return;
+    setComments((prev) => [
+      {
+        id: `${Date.now()}`,
+        username: session?.user?.email?.split("@")[0] || "guest",
+        displayName: "You",
+        text: commentText.trim(),
+        createdAt: new Date().toISOString(),
+      },
+      ...prev,
+    ]);
+    setCommentText("");
+  };
+
   // Calculate stats
   const avgRating =
     reviews && reviews.length > 0
@@ -88,11 +124,38 @@ export default function CoffeeDetailScreen() {
 
   const reviewCount = reviews?.length || 0;
 
+  const ratingBreakdown = useMemo(() => {
+    if (!reviews || reviews.length === 0) return [];
+    return [5, 4, 3, 2, 1].map((star) => ({
+      label: `${star}★`,
+      value: reviews.filter((review) => review.rating === star).length,
+    }));
+  }, [reviews]);
+
+  const similarCoffees = useMemo(() => {
+    if (!allCoffees || !coffee) return [];
+    const related = allCoffees.filter(
+      (item) =>
+        item.id !== coffee.id &&
+        (item.origin === coffee.origin || item.roaster_id === coffee.roaster_id)
+    );
+    const fallback = allCoffees.filter((item) => item.id !== coffee.id);
+    const list = (related.length > 0 ? related : fallback).slice(0, 6);
+
+    return list.map((item) => ({
+      id: item.id,
+      name: item.name,
+      roasterName: item.roasters?.name || "Unknown Roaster",
+      imageUrl: item.bag_image_url || undefined,
+      rating: 0,
+    }));
+  }, [allCoffees, coffee]);
+
   // Loading state
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator size="large" color="#BC5215" />
+      <View className="flex-1 items-center justify-center bg-background">
+        <ActivityIndicator size="large" color="hsl(24, 87%, 41%)" />
       </View>
     );
   }
@@ -100,542 +163,224 @@ export default function CoffeeDetailScreen() {
   // Error state
   if (!coffee) {
     return (
-      <View className="flex-1 items-center justify-center bg-white p-8">
-        <Text className="text-xl font-semibold text-[#1C1B1A] mb-2">
+      <View className="flex-1 items-center justify-center bg-background p-8">
+        <Text className="text-xl font-semibold text-foreground mb-2">
           Coffee not found
         </Text>
-        <TouchableOpacity
-          className="bg-[#BC5215] px-6 py-3 rounded-lg mt-4"
-          onPress={() => router.back()}
-        >
-          <Text className="text-white font-semibold">Go Back</Text>
-        </TouchableOpacity>
+        <Button variant="default" onPress={() => router.back()} className="mt-4">
+          <Text>Go Back</Text>
+        </Button>
       </View>
     );
   }
 
-  // Recipe icons and labels mapping
-  const recipeIcons: Record<string, string> = {
-    filter: '☕',
-    espresso: '🔥',
-    cold_brew: '🧊',
-    decaf: '💤',
-  };
-
-  const recipeLabels: Record<string, string> = {
-    filter: 'Filter',
-    espresso: 'Espresso',
-    cold_brew: 'Cold Brew',
-    decaf: 'Decaffeinated',
-  };
-
-  const placeholderSimilarCoffees = [
-    {
-      id: "1",
-      name: "Similar Coffee 1",
-      roasterName: "Unknown Roaster",
-      rating: 4.2,
-      price: "€12.50",
-    },
-    {
-      id: "2",
-      name: "Similar Coffee 2",
-      roasterName: "Unknown Roaster",
-      rating: 4.5,
-      price: "€14.00",
-    },
-    {
-      id: "3",
-      name: "Similar Coffee 3",
-      roasterName: "Unknown Roaster",
-      rating: 4.0,
-      price: "€11.00",
-    },
-  ];
-
   return (
     <>
-      <ScrollView className="flex-1 bg-white">
-        {/* A. Hero Section */}
-        <View className="px-4 pt-4 pb-6">
-          <View className="flex-row gap-4">
-            {/* Left Column - Image (40%) */}
-            <View className="w-[40%]">
-              <View className="bg-[#E6E4D9] rounded-lg overflow-hidden aspect-[3/4] items-center justify-center relative">
-                {coffee.bag_image_url ? (
-                  <Image
-                    source={{ uri: coffee.bag_image_url }}
-                    className="w-full h-full"
-                    resizeMode="contain"
-                  />
-                ) : (
-                  <Text className="text-6xl">☕</Text>
-                )}
-                {/* Scan overlay */}
-                <View className="absolute bottom-2 left-2 bg-white/90 rounded px-2 py-1">
-                  <Text className="text-xs text-[#6F6E69]">📷 Scan</Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Right Column - Meta Data (60%) */}
-            <View className="flex-1 justify-between">
-              {/* Rating Block */}
-              <View>
-                <View className="bg-[#D0A215] px-3 py-1 rounded-full self-start mb-2">
-                  <Text className="text-xs text-white font-semibold">
-                    That's about average ↓
-                  </Text>
-                </View>
-                <Text className="text-5xl font-bold text-[#1C1B1A] mb-2">
-                  {avgRating.toFixed(1)}
-                </Text>
-                <RatingStars rating={avgRating} size="sm" />
-                <Text className="text-xs text-[#878580] mt-1">
-                  {reviewCount} ratings
-                </Text>
-
-                {/* Match Score */}
-                <TouchableOpacity className="flex-row items-center mt-4 bg-[#FFFCF0] px-3 py-2 rounded-lg border border-[#CECDC3]">
-                  <View className="w-6 h-6 rounded-full bg-[#BC5215] mr-2" />
-                  <Text className="text-xs text-[#6F6E69]">
-                    Calculate your personal match
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Action Row */}
-              <View className="flex-row gap-2 mt-4">
-                <TouchableOpacity
-                  onPress={() => setShowRatingModal(true)}
-                  className="flex-1 border border-[#BC5215] px-3 py-2 rounded-lg flex-row items-center justify-center"
-                >
-                  <Ionicons name="star" size={16} color="#BC5215" />
-                  <Text className="text-[#BC5215] font-semibold text-xs ml-1">
-                    Rate
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity className="flex-1 border border-[#6F6E69] px-3 py-2 rounded-lg flex-row items-center justify-center">
-                  <MaterialIcons name="list" size={16} color="#6F6E69" />
-                  <Text className="text-[#6F6E69] font-semibold text-xs ml-1">
-                    Actions
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-
-          {/* Bottom Meta (Full Width) */}
-          <View className="mt-4">
-            <Text className="text-xs text-[#878580] uppercase mb-1">
-              {coffee.roasters?.name || "Unknown Roaster"}
-            </Text>
-            <Text className="text-2xl font-bold text-[#1C1B1A] mb-2">
-              {coffee.name}
-            </Text>
-            <View className="flex-row items-center mb-2">
-              <Text className="text-2xl mr-2">🇸🇻</Text>
-              <Text className="text-sm text-[#6F6E69]">
-                {coffee.origin
-                  ? `Collected in ${coffee.origin}`
-                  : "Origin unknown"}
-                {coffee.roasters?.location
-                  ? `, roasted in ${coffee.roasters.location}`
-                  : ""}
-              </Text>
-            </View>
-            <TouchableOpacity className="flex-row items-center">
-              <Ionicons name="pencil" size={14} color="#BC5215" />
-              <Text className="text-sm text-[#BC5215] underline ml-1">
-                Change coffee
-              </Text>
-            </TouchableOpacity>
-          </View>
+      <ScrollView className="flex-1 bg-background">
+        <View className="px-4 pt-6 pb-6">
+          <CoffeeHero
+            name={coffee.name}
+            roasterName={coffee.roasters?.name || "Unknown Roaster"}
+            origin={coffee.origin || "Origin unknown"}
+            imageUrl={coffee.bag_image_url || undefined}
+            rating={avgRating}
+            reviewCount={reviewCount}
+            onRate={() => setShowRatingModal(true)}
+          />
         </View>
 
-        {/* B. Purchase Module */}
+        <View className="px-4 pb-6">
+          <CoffeeRating
+            rating={avgRating}
+            reviewCount={reviewCount}
+            breakdown={ratingBreakdown}
+          />
+        </View>
+
+        <View className="px-4 pb-6">
+          <CoffeeInfo
+            origin={coffee.origin || undefined}
+            process={coffee.process || undefined}
+            altitude={coffee.altitude || undefined}
+            varietal={coffee.varietal || undefined}
+            harvestDate={coffee.harvest_year || undefined}
+          />
+        </View>
+
+        <View className="px-4 pb-6">
+          <CoffeeMetrics metrics={[]} />
+        </View>
+
+        <View className="px-4 pb-6">
+          <CoffeeNotes
+            note={notes}
+            updatedAt={notesUpdatedAt || undefined}
+            flavorTags={coffee.tasting_notes || undefined}
+            editable={isEditingNotes}
+            onChangeText={setNotes}
+            onEdit={handleToggleNotesEdit}
+            onDelete={handleDeleteNotes}
+          />
+        </View>
+
+        {/* Purchase Module */}
         {coffee.price && (
-          <View className="px-4 py-6 bg-[#FFFCF0] border-y border-[#CECDC3]">
+          <View className="px-4 py-6 bg-card border-y border-border">
             <View className="flex-row items-baseline mb-3">
-              <Text className="text-3xl font-bold text-[#1C1B1A]">
+              <Text className="text-3xl font-bold text-foreground">
                 {coffee.price_currency === "EUR" ? "€" : "$"}
                 {coffee.price.toFixed(2)}
               </Text>
-              <Text className="text-sm text-[#878580] ml-2">
+              <Text className="text-sm text-muted-foreground ml-2">
                 /{coffee.weight || 250}gr
               </Text>
             </View>
-            <TouchableOpacity
-              className="bg-[#BC5215] py-4 rounded-lg"
+            <Button
+              variant="default"
               onPress={() => {
                 if (coffee.product_url) {
-                  // Open URL in browser
-                  Alert.alert(
-                    "Buy Coffee",
-                    `This will open: ${coffee.product_url}`
-                  );
+                  Alert.alert("Buy Coffee", `This will open: ${coffee.product_url}`);
                 }
               }}
             >
-              <Text className="text-white font-bold text-center text-lg">
-                Buy now
-              </Text>
-            </TouchableOpacity>
+              <Text>Buy now</Text>
+            </Button>
           </View>
         )}
 
-        {/* D. Summary Section */}
-        <View className="px-4 py-6">
-          <Text className="text-xl font-bold text-[#1C1B1A] mb-4">
-            Summary
-          </Text>
-
-          {/* Tabs */}
-          <View className="flex-row mb-4">
-            <TouchableOpacity
-              onPress={() => setSummaryTab("highlights")}
-              className={`flex-1 py-3 rounded-full mr-2 ${
-                summaryTab === "highlights"
-                  ? "bg-[#1C1B1A]"
-                  : "bg-white border border-[#CECDC3]"
-              }`}
-            >
-              <Text
-                className={`text-center font-semibold ${
-                  summaryTab === "highlights" ? "text-white" : "text-[#1C1B1A]"
-                }`}
-              >
-                Highlights
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setSummaryTab("facts")}
-              className={`flex-1 py-3 rounded-full ${
-                summaryTab === "facts"
-                  ? "bg-[#1C1B1A]"
-                  : "bg-white border border-[#CECDC3]"
-              }`}
-            >
-              <Text
-                className={`text-center font-semibold ${
-                  summaryTab === "facts" ? "text-white" : "text-[#1C1B1A]"
-                }`}
-              >
-                Facts
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Tab Content */}
-          {summaryTab === "highlights" ? (
-            <View className="gap-3">
-              <View className="flex-row items-start">
-                <View className="w-8 h-8 rounded-full bg-pink-100 items-center justify-center mr-3">
-                  <Text className="text-lg">🏆</Text>
-                </View>
-                <Text className="flex-1 text-[#6F6E69] leading-6">
-                  Featured in <Text className="font-bold">Top 25 coffees</Text>{" "}
-                  in the app
-                </Text>
-              </View>
-              <View className="flex-row items-start">
-                <View className="w-8 h-8 rounded-full bg-yellow-100 items-center justify-center mr-3">
-                  <Text className="text-lg">⭐</Text>
-                </View>
-                <Text className="flex-1 text-[#6F6E69] leading-6">
-                  Among top{" "}
-                  <Text className="font-bold">9% of all coffees</Text> in the
-                  world
-                </Text>
-              </View>
-              <View className="flex-row items-start">
-                <View className="w-8 h-8 rounded-full bg-orange-100 items-center justify-center mr-3">
-                  <Text className="text-lg">☕</Text>
-                </View>
-                <Text className="flex-1 text-[#6F6E69] leading-6">
-                  You haven't tried this style yet
-                </Text>
-              </View>
-            </View>
-          ) : (
-            <View className="gap-2">
-              {coffee.origin && (
-                <FactRow label="Origin" value={coffee.origin} />
-              )}
-              {coffee.region && (
-                <FactRow label="Region" value={coffee.region} />
-              )}
-              {coffee.process && (
-                <FactRow label="Process" value={coffee.process} />
-              )}
-              {coffee.roast_level && (
-                <FactRow label="Roast Level" value={coffee.roast_level} />
-              )}
-              {coffee.varietal && (
-                <FactRow label="Varietal" value={coffee.varietal} />
-              )}
-              {coffee.altitude && (
-                <FactRow label="Altitude" value={coffee.altitude} />
-              )}
-            </View>
-          )}
-        </View>
-
-        {/* E. Taste Characteristics */}
-        <View className="px-4 py-6 bg-[#FFFCF0]">
+        {/* Taste Characteristics */}
+        <View className="px-4 py-6 bg-card">
           <View className="flex-row justify-between items-center mb-2">
-            <Text className="text-xl font-bold text-[#1C1B1A]">
+            <Text className="text-xl font-bold text-foreground">
               Taste characteristics
             </Text>
-            <Ionicons name="pencil" size={18} color="#BC5215" />
+            <Pencil size={18} color="hsl(24, 87%, 41%)" />
           </View>
-          <Text className="text-sm text-[#878580] mb-4">
+          <Text className="text-sm text-muted-foreground mb-4">
             Based on {reviewCount} user reviews
           </Text>
 
-          {/* Sliders - Real values from database */}
-          {coffee.taste_body !== null && (
-            <TasteSlider
-              leftLabel="Light"
-              rightLabel="Bold"
-              value={coffee.taste_body}
-            />
+          {coffee.taste_body !== null && coffee.taste_body !== undefined && (
+            <TasteSlider leftLabel="Light" rightLabel="Bold" value={coffee.taste_body} />
           )}
-          {coffee.taste_sweetness !== null && (
-            <TasteSlider
-              leftLabel="Dry"
-              rightLabel="Sweet"
-              value={coffee.taste_sweetness}
-            />
+          {coffee.taste_sweetness !== null && coffee.taste_sweetness !== undefined && (
+            <TasteSlider leftLabel="Dry" rightLabel="Sweet" value={coffee.taste_sweetness} />
           )}
-          {coffee.taste_acidity !== null && (
-            <TasteSlider
-              leftLabel="Soft"
-              rightLabel="Acidic"
-              value={coffee.taste_acidity}
-            />
+          {coffee.taste_acidity !== null && coffee.taste_acidity !== undefined && (
+            <TasteSlider leftLabel="Soft" rightLabel="Acidic" value={coffee.taste_acidity} />
           )}
 
-          {/* Flavor Description */}
           {coffee.flavor_description && (
-            <View className="mt-4 p-4 bg-white rounded-lg border border-[#CECDC3]">
-              <Text className="text-sm text-[#6F6E69] leading-6">
+            <Card className="mt-4 p-4">
+              <Text className="text-sm text-muted-foreground leading-6">
                 {coffee.flavor_description}
               </Text>
-            </View>
+            </Card>
           )}
-
-          {/* Flavor Tags */}
-          <View className="mt-6">
-            <Text className="text-lg font-semibold text-[#1C1B1A] mb-3">
-              What people talk about
-            </Text>
-            {coffee.tasting_notes && coffee.tasting_notes.length > 0 ? (
-              coffee.tasting_notes.map((note, index) => (
-                <View
-                  key={index}
-                  className="flex-row items-center py-3 border-b border-[#CECDC3]"
-                >
-                  <View className="w-10 h-10 rounded-full bg-[#BC5215]/10 items-center justify-center mr-3">
-                    <Text className="text-xl">☕</Text>
-                  </View>
-                  <View className="flex-1">
-                    <Text className="font-semibold text-[#1C1B1A]">
-                      {note}
-                    </Text>
-                    <Text className="text-xs text-[#878580]">
-                      Placeholder mention count
-                    </Text>
-                  </View>
-                </View>
-              ))
-            ) : (
-              <View className="flex-row items-center py-3 border-b border-[#CECDC3]">
-                <View className="w-10 h-10 rounded-full bg-[#BC5215]/10 items-center justify-center mr-3">
-                  <Text className="text-xl">🍋</Text>
-                </View>
-                <View className="flex-1">
-                  <Text className="font-semibold text-[#1C1B1A]">
-                    Citrus, lemon, lime
-                  </Text>
-                  <Text className="text-xs text-[#878580]">
-                    575 mentions of citrus fruit notes
-                  </Text>
-                </View>
-              </View>
-            )}
-            <TouchableOpacity className="mt-3">
-              <Text className="text-[#BC5215] font-semibold">Show more</Text>
-            </TouchableOpacity>
-          </View>
         </View>
 
-        {/* F. Reviews Module */}
+        {/* Reviews */}
         <View className="px-4 py-6">
           <View className="flex-row justify-between items-center mb-4">
-            <Text className="text-xl font-bold text-[#1C1B1A]">Reviews</Text>
-            <TouchableOpacity onPress={() => setShowRatingModal(true)}>
-              <Text className="text-[#BC5215] font-semibold">
-                Add a new review
-              </Text>
-            </TouchableOpacity>
+            <Text className="text-xl font-bold text-foreground">Reviews</Text>
+            <Pressable onPress={() => setShowRatingModal(true)}>
+              <Text className="text-primary font-semibold">Add a new review</Text>
+            </Pressable>
           </View>
 
-          {/* Filter Chips */}
-          <View className="flex-row gap-2 mb-4">
-            <TouchableOpacity
-              onPress={() => setReviewFilter("helpful")}
-              className={`px-4 py-2 rounded-full border ${
-                reviewFilter === "helpful"
-                  ? "bg-[#1C1B1A] border-[#1C1B1A]"
-                  : "bg-white border-[#CECDC3]"
-              }`}
-            >
-              <Text
-                className={
-                  reviewFilter === "helpful" ? "text-white" : "text-[#1C1B1A]"
-                }
-              >
-                Helpful
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setReviewFilter("recent")}
-              className={`px-4 py-2 rounded-full border ${
-                reviewFilter === "recent"
-                  ? "bg-[#1C1B1A] border-[#1C1B1A]"
-                  : "bg-white border-[#CECDC3]"
-              }`}
-            >
-              <Text
-                className={
-                  reviewFilter === "recent" ? "text-white" : "text-[#1C1B1A]"
-                }
-              >
-                Recent
-              </Text>
-            </TouchableOpacity>
-          </View>
+          <ReviewSummary
+            rating={avgRating}
+            reviewCount={reviewCount}
+            breakdown={ratingBreakdown}
+            summary={
+              reviewCount > 0
+                ? `Based on ${reviewCount} ratings`
+                : "No reviews yet"
+            }
+            tags={coffee.tasting_notes || undefined}
+          />
 
-          {/* Reviews List */}
-          {isLoadingReviews ? (
-            <ActivityIndicator color="#BC5215" />
-          ) : reviews && reviews.length > 0 ? (
-            reviews.map((review) => (
-              <ReviewCard
-                key={review.id}
-                username={review.users?.username || "Unknown"}
-                displayName={review.users?.display_name || undefined}
-                avatarUrl={review.users?.avatar_url || undefined}
-                rating={review.rating}
-                reviewText={review.review_text || undefined}
-                brewingMethod={review.brewing_method || undefined}
-                brewDate={review.brew_date || undefined}
-                createdAt={review.created_at}
-              />
-            ))
-          ) : (
-            <View className="p-6 bg-[#FFFCF0] rounded-lg border border-[#CECDC3]">
-              <Text className="text-[#6F6E69] text-center">
-                No reviews yet.
-              </Text>
-              <Text className="text-[#878580] text-center mt-1">
-                Be the first to review this coffee!
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* H. Recipes */}
-        <View className="px-4 py-6 bg-[#FFFCF0]">
-          <Text className="text-xl font-bold text-[#1C1B1A] mb-4">
-            Recommended Recipes
-          </Text>
-
-          <View className="gap-3">
-            {recipeVotes && recipeVotes.length > 0 ? (
-              <>
-                {recipeVotes
-                  .sort((a, b) => (b.percentage || 0) - (a.percentage || 0))
-                  .map((vote) => (
-                    <View
-                      key={vote.recipe_type}
-                      className="flex-row items-center justify-between bg-white rounded-lg border border-[#CECDC3] p-4"
-                    >
-                      <View className="flex-row items-center flex-1">
-                        <Text className="text-2xl mr-3">
-                          {recipeIcons[vote.recipe_type] || '☕'}
-                        </Text>
-                        <Text className="text-[#1C1B1A] font-semibold">
-                          {recipeLabels[vote.recipe_type] || vote.recipe_type}
-                        </Text>
-                      </View>
-                      <View className="bg-[#BC5215] px-3 py-1 rounded-full">
-                        <Text className="text-white font-bold">
-                          {vote.percentage?.toFixed(0)}%
-                        </Text>
-                      </View>
-                    </View>
-                  ))}
-                <Text className="text-xs text-[#878580] text-center mt-3">
-                  Based on {recipeVotes.reduce((sum, v) => sum + (v.vote_count || 0), 0)} votes
-                </Text>
-              </>
+          <View className="mt-4">
+            {isLoadingReviews ? (
+              <ActivityIndicator color="hsl(24, 87%, 41%)" />
+            ) : reviews && reviews.length > 0 ? (
+              reviews.map((review) => (
+                <ReviewFull
+                  key={review.id}
+                  username={review.users?.username || "Unknown"}
+                  displayName={review.users?.display_name || undefined}
+                  avatarUrl={review.users?.avatar_url || undefined}
+                  rating={review.rating}
+                  reviewText={review.review_text || undefined}
+                  brewingMethod={review.brewing_method || undefined}
+                  brewDate={review.brew_date || undefined}
+                  createdAt={review.created_at}
+                />
+              ))
             ) : (
-              <View className="bg-white rounded-lg border border-[#CECDC3] p-6">
-                <Text className="text-[#6F6E69] text-center">
-                  No recipe recommendations yet
+              <Card className="p-6">
+                <Text className="text-muted-foreground text-center">
+                  No reviews yet.
                 </Text>
-              </View>
+                <Text className="text-muted-foreground text-center mt-1">
+                  Be the first to review this coffee!
+                </Text>
+              </Card>
             )}
           </View>
+
+          <View className="mt-6">
+            <Text className="text-lg font-semibold text-foreground mb-3">
+              Comments
+            </Text>
+            <CommentInput
+              value={commentText}
+              onChangeText={setCommentText}
+              onSend={handleSendComment}
+            />
+            <View className="mt-4">
+              <CommentList comments={comments} />
+            </View>
+          </View>
         </View>
 
-        {/* J. Coffee Shop Info */}
+        <View className="px-4 pb-6">
+          <WhereToFindPreview
+            coffeeId={coffee.id}
+            coffeeName={coffee.name}
+            locations={coffeeLocations}
+          />
+        </View>
+
+        {/* Roaster Info */}
         <View className="px-4 py-6">
-          <Text className="text-xl font-bold text-[#1C1B1A] mb-4">
+          <Text className="text-xl font-bold text-foreground mb-4">
             About {coffee.roasters?.name || "this roaster"}
           </Text>
 
-          <View className="bg-[#FFFCF0] rounded-lg border border-[#CECDC3] p-4 mb-4">
-            <View className="flex-row items-center mb-3">
-              <Text className="text-[#6F6E69] mr-3">44 coffees</Text>
-              <View className="flex-row items-center bg-[#D0A215] px-2 py-1 rounded-full mr-3">
-                <Text className="text-white font-bold text-xs">
-                  {avgRating.toFixed(1)}
-                </Text>
-              </View>
-              <Text className="text-[#878580] text-xs">
+          <Card className="p-4 mb-4">
+            <View className="flex-row items-center">
+              <Text className="text-muted-foreground mr-3">Roaster</Text>
+              <Badge variant="yellow">
+                <Text>{avgRating.toFixed(1)}</Text>
+              </Badge>
+              <Text className="text-muted-foreground text-xs ml-3">
                 {reviewCount} ratings
               </Text>
             </View>
+          </Card>
+
+          <RoasterMapPreview
+            location={coffee.roasters?.location || "Location unknown"}
+          />
+        </View>
+
+        {similarCoffees.length > 0 ? (
+          <View className="px-4 pb-8">
+            <SimilarCoffees coffees={similarCoffees} tone="elevated" />
           </View>
+        ) : null}
 
-          {/* Roaster Locations Map */}
-          {roasterLocations && roasterLocations.length > 0 ? (
-            <RoasterLocationsMap
-              locations={roasterLocations}
-              roasterName={coffee.roasters?.name}
-            />
-          ) : (
-            <RoasterMapPreview
-              location={coffee.roasters?.location || "Location unknown"}
-            />
-          )}
-        </View>
-
-        {/* L. Recommendations */}
-        <View className="py-6">
-          <Text className="text-xl font-bold text-[#1C1B1A] mb-4 px-4">
-            Similar coffees you might like
-          </Text>
-          <CoffeeCarousel coffees={placeholderSimilarCoffees} />
-          <Text className="text-xs text-[#878580] text-center mt-3 px-4">
-            Placeholder recommendation data
-          </Text>
-        </View>
-
-        {/* Bottom Spacing */}
         <View className="h-8" />
       </ScrollView>
 
@@ -647,12 +392,12 @@ export default function CoffeeDetailScreen() {
         onRequestClose={() => setShowRatingModal(false)}
       >
         <View className="flex-1 bg-black/50 justify-end">
-          <View className="bg-white rounded-t-3xl p-6">
-            <Text className="text-2xl font-bold text-[#1C1B1A] mb-4">
+          <View className="bg-background rounded-t-3xl p-6">
+            <Text className="text-2xl font-bold text-foreground mb-4">
               Rate {coffee.name}
             </Text>
 
-            <Text className="text-[#6F6E69] mb-2">Your Rating:</Text>
+            <Text className="text-muted-foreground mb-2">Your Rating:</Text>
             <View className="mb-4">
               <RatingStars
                 rating={newRating}
@@ -662,11 +407,11 @@ export default function CoffeeDetailScreen() {
               />
             </View>
 
-            <Text className="text-[#6F6E69] mb-2">Review (optional):</Text>
+            <Text className="text-muted-foreground mb-2">Review (optional):</Text>
             <TextInput
-              className="bg-[#FFFCF0] p-3 rounded-lg mb-4 min-h-24 border border-[#CECDC3]"
+              className="bg-card p-3 rounded-lg mb-4 min-h-24 border border-border text-foreground"
               placeholder="Share your thoughts about this coffee..."
-              placeholderTextColor="#B7B5AC"
+              placeholderTextColor="hsl(30, 4%, 51%)"
               multiline
               value={newReviewText}
               onChangeText={setNewReviewText}
@@ -674,40 +419,29 @@ export default function CoffeeDetailScreen() {
             />
 
             <View className="flex-row gap-3">
-              <TouchableOpacity
-                className="flex-1 bg-[#E6E4D9] px-6 py-3 rounded-lg"
+              <Button
+                variant="secondary"
+                className="flex-1"
                 onPress={() => {
                   setShowRatingModal(false);
                   setNewRating(0);
                   setNewReviewText("");
                 }}
               >
-                <Text className="text-[#1C1B1A] font-semibold text-center">
-                  Cancel
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                className="flex-1 bg-[#BC5215] px-6 py-3 rounded-lg"
+                <Text>Cancel</Text>
+              </Button>
+              <Button
+                variant="default"
+                className="flex-1"
                 onPress={handleSubmitReview}
-                disabled={createReview.isPending}
+                loading={createReview.isPending}
               >
-                <Text className="text-white font-semibold text-center">
-                  {createReview.isPending ? "Submitting..." : "Submit"}
-                </Text>
-              </TouchableOpacity>
+                <Text>Submit</Text>
+              </Button>
             </View>
           </View>
         </View>
       </Modal>
     </>
-  );
-}
-
-function FactRow({ label, value }: { label: string; value: string }) {
-  return (
-    <View className="flex-row justify-between py-2 border-b border-[#CECDC3]">
-      <Text className="text-[#878580]">{label}</Text>
-      <Text className="text-[#1C1B1A] font-semibold">{value}</Text>
-    </View>
   );
 }

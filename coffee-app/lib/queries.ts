@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "./supabase";
 import { Database } from "../types/database.types";
+import type { Location, LocationFilterParams } from "../types/location";
+import { DUMMY_LOCATIONS } from "./dummy-locations";
 
 type Coffee = Database["public"]["Tables"]["coffees"]["Row"];
 type Roaster = Database["public"]["Tables"]["roasters"]["Row"];
@@ -256,5 +258,60 @@ export function useSession() {
       } = await supabase.auth.getSession();
       return session;
     },
+  });
+}
+
+// ============ Locations ============
+
+export function useLocations(params?: LocationFilterParams) {
+  return useQuery({
+    queryKey: ["locations", params],
+    queryFn: async () => {
+      // For now, use dummy data. Replace with Supabase query when ready:
+      // const { data, error } = await supabase
+      //   .from("locations")
+      //   .select("*")
+      //   .order("name");
+
+      let filtered = [...DUMMY_LOCATIONS];
+
+      if (params?.city) {
+        filtered = filtered.filter(
+          (loc) => loc.city.toLowerCase() === params.city!.toLowerCase()
+        );
+      }
+
+      if (params?.type) {
+        filtered = filtered.filter((loc) => loc.type === params.type);
+      }
+
+      if (params?.search) {
+        const query = params.search.toLowerCase();
+        filtered = filtered.filter(
+          (loc) =>
+            loc.name.toLowerCase().includes(query) ||
+            loc.address.toLowerCase().includes(query)
+        );
+      }
+
+      return filtered as Location[];
+    },
+  });
+}
+
+export function useCoffeeLocations(coffeeId: string) {
+  return useQuery({
+    queryKey: ["coffee", coffeeId, "locations"],
+    queryFn: async () => {
+      // For now, return all dummy locations. Replace with:
+      // const { data, error } = await supabase
+      //   .from("coffee_locations")
+      //   .select("locations(*)")
+      //   .eq("coffee_id", coffeeId);
+
+      // Return dummy data for development
+      return DUMMY_LOCATIONS as Location[];
+    },
+    enabled: !!coffeeId,
   });
 }
